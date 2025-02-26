@@ -17,7 +17,7 @@ export default function App() {
           onFinish={(finalScore: any, finalAnswers: any) => {
             setScore(finalScore);
             setAnswers(finalAnswers);
-            setGameState('results');
+            // setGameState('results');
           }}
         />
       )}

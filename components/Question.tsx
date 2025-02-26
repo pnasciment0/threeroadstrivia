@@ -1,19 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
 
 export default function Question({
   data,
   onSubmitAnswer,
-  isAnswered,
+  isCorrect, // Controlled from parent
+  isGameOver,
+  attemptNumber
 }: {
   data: { question: string };
   onSubmitAnswer: (answer: string) => void;
-  isAnswered?: boolean; // Use boolean instead of string for clarity
+  isCorrect?: boolean;
+  isGameOver?: boolean;
+  attemptNumber: number
 }) {
   const [userAnswer, setUserAnswer] = useState('');
 
-  // console.log(data, isAnswered);
-
+  useEffect(() => {
+    // Whenever there's a new submission attempt, clear the input if the answer is incorrect
+    if (isCorrect === false) {
+      setUserAnswer('');
+    }
+  }, [attemptNumber]);
+4
   return (
     <View style={styles.container}>
       <Text style={styles.question}>{data.question}</Text>
@@ -22,17 +31,16 @@ export default function Question({
         placeholder="Type your answer here"
         value={userAnswer}
         onChangeText={setUserAnswer}
-        editable={isAnswered !== true} // Disable if answered correctly
+        editable={!isGameOver && isCorrect !== true} // Only editable if hasn't been answered correctly
       />
       <Button 
         title="Submit" 
         onPress={() => {
           if (userAnswer.trim()) { // Ensure there's input
             onSubmitAnswer(userAnswer.trim());
-            setUserAnswer(''); // Clear input after submit
           }
         }} 
-        disabled={isAnswered === true} // Disable if answered correctly
+        disabled={!isGameOver && isCorrect === true} // Disable if answered correctly
       />
     </View>
   );

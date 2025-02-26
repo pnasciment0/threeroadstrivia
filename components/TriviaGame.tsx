@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
 import Question from './Question';
 
@@ -13,34 +13,46 @@ export default function TriviaGame({ onFinish }: { onFinish: (score: number, ans
   const [answers, setAnswers] = useState<{ question: string; correctAnswer: string; userAnswer: string }[]>([]);
   const [score, setScore] = useState(0);
   const [timer, setTimer] = useState(0);
-  const [answeredQuestions, setAnsweredQuestions] = useState<{ [key: number]: { correct: boolean | undefined } }>({});
+  const [answeredQuestions, setAnsweredQuestions] = useState<{ [key: number]: { correct: boolean | undefined, attemptNumber: number } }>({});
+  const timerRef = useRef<NodeJS.Timeout | null>(null); // Store interval ID
+  const [gameOver, setGameOver] = useState(false);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer((prev) => {
-        console.log("Timer Updated:", prev + 1);
-        return prev + 1
-      });
+    timerRef.current = setInterval(() => {
+      setTimer((prev) => prev + 1);
     }, 1000);
-    return () => clearInterval(interval);
+  
+    return () => {
+      clearInterval(timerRef.current as NodeJS.Timeout);
+    };
   }, []);
+  
 
   useEffect(() => {
     if (score === sampleQuestions.length) {
+      clearInterval(timerRef.current as NodeJS.Timeout);
       onFinish(score, answers)
     }
   }, [score])
 
-  const handleAnswer = (questionIndex: number, userInput: string) => {
+  const handleAnswer = (questionIndex: number, userInput: string) => {  
+    console.log(`handleAnswer detected! input is ${userInput}`);
+
+    const currentAttempts = answeredQuestions[questionIndex]?.attemptNumber || 0;
     // Only proceed if the question hasn't been answered correctly yet
     if (answeredQuestions[questionIndex]?.correct === true) return;
+
+    console.log("not returning because question has not been answered correctly");
   
     const currentQuestion = sampleQuestions[questionIndex];
     const isCorrect = userInput.toLowerCase() === currentQuestion.answer.toLowerCase();
   
     setAnsweredQuestions((prev) => ({
       ...prev,
-      [questionIndex]: { correct: isCorrect }, // Store if the answer was correct
+      [questionIndex]: { 
+        correct: isCorrect,
+        attemptNumber: currentAttempts + 1
+       }, // Store if the answer was correct
     }));
   
     setAnswers((prevAnswers) => [
@@ -56,7 +68,18 @@ export default function TriviaGame({ onFinish }: { onFinish: (score: number, ans
     // console.log(`questionIndex: ${questionIndex} | userInput ${userInput} | answeredQuestions ${answeredQuestions} | sampleQuestions ${sampleQuestions}`)
 
   };
-  
+
+  const handleGiveUp = () => {
+    setGameOver(true);
+    console.log("Give up pressed");
+    console.log(`gameOver is set to ${gameOver}`);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null; // Prevent further clears
+    }
+    onFinish(score, answers);
+  };
+
   return (
     <View style={styles.container}>
       {/* <Text style={styles.timer}>Time: {timer} sec</Text> */}
@@ -66,22 +89,28 @@ export default function TriviaGame({ onFinish }: { onFinish: (score: number, ans
       </View> */}
       <ScrollView style={styles.scrollView}>
       <Text style={styles.timer}>Time: {timer} sec</Text>
+      <Text style={styles.timer}>Questions answered correctly: {score}</Text>
         {sampleQuestions.map((question, index) => (
           <View key={index} style={styles.questionContainer}>
             <Question 
               data={question} 
               onSubmitAnswer={(answer) => handleAnswer(index, answer)} 
-              isAnswered={answeredQuestions[index] ? answeredQuestions[index].correct : undefined} // Safely check for existence
+              isCorrect={answeredQuestions[index] ? answeredQuestions[index].correct : undefined} // Safely check for existence
+              isGameOver={gameOver}
+              attemptNumber={answeredQuestions[index]?.attemptNumber}
             />
             {answeredQuestions[index] && answeredQuestions[index].correct !== null && (
               <Text style={{ color: answeredQuestions[index].correct ? 'green' : 'red' }}>
-                {answeredQuestions[index].correct ? 'Correct!' : `Wrong! Answer: ${question.answer}`}
+                {answeredQuestions[index].correct ? 'Correct!' : `Try again!`}
               </Text>
             )}
+             {gameOver && (answeredQuestions[index]?.correct === false || answeredQuestions[index] === undefined) && (
+                  <Text style={{ color: 'blue' }}>Correct Answer: {question.answer}</Text>
+              )}
           </View>
         ))}
       </ScrollView>
-      <Button title="Give Up" onPress={() => onFinish(score, answers)} />
+      <Button title="Give Up" onPress={handleGiveUp} />
     </View>
   );
 }
